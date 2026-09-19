@@ -1,19 +1,14 @@
 name: RDP
 
-
 on:
-
   workflow_dispatch:
 
-
 jobs:
-
   secure-rdp:
 
     runs-on: windows-latest
 
     timeout-minutes: 3600
-
 
     steps:
 
@@ -23,33 +18,24 @@ jobs:
 
           # Enable Remote Desktop and disable Network Level Authentication (if needed)
 
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0 -Force
 
-                             -Name "fDenyTSConnections" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0 -Force
 
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-
-                             -Name "UserAuthentication" -Value 0 -Force
-
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
-
-                             -Name "SecurityLayer" -Value 0 -Force
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "SecurityLayer" -Value 0 -Force
 
 
           # Remove any existing rule with the same name to avoid duplication
 
           netsh advfirewall firewall delete rule name="RDP-Tailscale"
 
-         
 
           # For testing, allow any incoming connection on port 3389
 
-          netsh advfirewall firewall add rule name="RDP-Tailscale" `
-
-            dir=in action=allow protocol=TCP localport=3389
+          netsh advfirewall firewall add rule name="RDP-Tailscale" dir=in action=allow protocol=TCP localport=3389
 
 
-          # (Optional) Restart the Remote Desktop service to ensure changes take effect
+          # Restart the Remote Desktop service to ensure changes take effect
 
           Restart-Service -Name TermService -Force
 
@@ -62,15 +48,13 @@ jobs:
 
           $charSet = @{
 
-              Upper   = [char[]](65..90)      # A-Z
+              Upper   = [char[]](65..90)
 
-              Lower   = [char[]](97..122)     # a-z
+              Lower   = [char[]](97..122)
 
-              Number  = [char[]](48..57)      # 0-9
+              Number  = [char[]](48..57)
 
-              Special = ([char[]](33..47) + [char[]](58..64) +
-
-                         [char[]](91..96) + [char[]](123..126)) # Special characters
+              Special = ([char[]](33..47) + [char[]](58..64) + [char[]](91..96) + [char[]](123..126))
 
           }
 
@@ -94,11 +78,9 @@ jobs:
 
           Add-LocalGroupMember -Group "Remote Desktop Users" -Member "RDP"
 
-         
 
           echo "RDP_CREDS=User: RDP | Password: $password" >> $env:GITHUB_ENV
 
-         
 
           if (-not (Get-LocalUser -Name "RDP")) {
 
@@ -117,7 +99,6 @@ jobs:
 
           $installerPath = "$env:TEMP\tailscale.msi"
 
-         
 
           Invoke-WebRequest -Uri $tsUrl -OutFile $installerPath
 
@@ -134,7 +115,6 @@ jobs:
 
           & "$env:ProgramFiles\Tailscale\tailscale.exe" up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=gh-runner-$env:GITHUB_RUN_ID
 
-         
 
           # Wait for Tailscale to assign an IP
 
@@ -152,7 +132,6 @@ jobs:
 
           }
 
-         
 
           if (-not $tsIP) {
 
@@ -162,9 +141,9 @@ jobs:
 
           }
 
+
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
-     
 
       - name: Verify RDP Accessibility
 
@@ -172,7 +151,6 @@ jobs:
 
           Write-Host "Tailscale IP: $env:TAILSCALE_IP"
 
-         
 
           # Test connectivity using Test-NetConnection against the Tailscale IP on port 3389
 
@@ -203,7 +181,6 @@ jobs:
 
           Write-Host "==================`n"
 
-         
 
           # Keep runner active indefinitely (or until manually cancelled)
 
