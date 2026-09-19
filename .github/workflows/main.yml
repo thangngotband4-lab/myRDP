@@ -145,6 +145,153 @@ jobs:
           echo "TAILSCALE_IP=$tsIP" >> $env:GITHUB_ENV
 
 
+      # ============================================================
+      # VIRTUALBOX
+      # ============================================================
+
+      - name: Install VirtualBox
+
+        shell: powershell
+
+        run: |
+
+          $VBoxVersion = "7.2.18"
+
+          $VBoxBuild = "175117"
+
+          $VBoxUrl = "https://download.virtualbox.org/virtualbox/$VBoxVersion/VirtualBox-$VBoxVersion-$VBoxBuild-Win.exe"
+
+          $VBoxInstaller = "$env:TEMP\VirtualBox.exe"
+
+
+          Write-Host "Downloading VirtualBox $VBoxVersion..."
+
+          Invoke-WebRequest -Uri $VBoxUrl -OutFile $VBoxInstaller
+
+
+          if (-not (Test-Path $VBoxInstaller)) {
+
+              Write-Error "VirtualBox installer was not downloaded."
+
+              exit 1
+
+          }
+
+
+          Write-Host "Installing VirtualBox..."
+
+          $process = Start-Process `
+
+            -FilePath $VBoxInstaller `
+
+            -ArgumentList "-silent", "-msiparams", "VBOX_INSTALLDESKTOPSHORTCUT=0 VBOX_INSTALLQUICKLAUNCHSHORTCUT=0 VBOX_REGISTERFILEEXTENSIONS=1 VBOX_START=0" `
+
+            -Wait `
+
+            -PassThru
+
+
+          if ($process.ExitCode -ne 0) {
+
+              Write-Error "VirtualBox installation failed. Exit code: $($process.ExitCode)"
+
+              exit $process.ExitCode
+
+          }
+
+
+          Remove-Item $VBoxInstaller -Force -ErrorAction SilentlyContinue
+
+
+          # Find VBoxManage
+
+          $VBoxManage = "${env:ProgramFiles}\Oracle\VirtualBox\VBoxManage.exe"
+
+
+          if (-not (Test-Path $VBoxManage)) {
+
+              Write-Error "VBoxManage.exe was not found after installation."
+
+              exit 1
+
+          }
+
+
+          # Add VirtualBox to PATH for this job
+
+          $VBoxPath = Split-Path $VBoxManage
+
+          $env:PATH = "$VBoxPath;$env:PATH"
+
+          echo "PATH=$VBoxPath;$env:PATH" >> $env:GITHUB_ENV
+
+
+          # Create VM directory
+
+          $VMFolder = "C:\VirtualBoxVMs"
+
+          New-Item -ItemType Directory -Path $VMFolder -Force | Out-Null
+
+
+          # Configure default VirtualBox machine folder
+
+          & $VBoxManage setproperty machinefolder $VMFolder
+
+
+          Write-Host ""
+
+          Write-Host "=========================================="
+
+          Write-Host "        VIRTUALBOX INSTALLED"
+
+          Write-Host "=========================================="
+
+          Write-Host ""
+
+          & $VBoxManage --version
+
+          Write-Host ""
+
+          Write-Host "VM Folder: $VMFolder"
+
+          Write-Host ""
+
+          Write-Host "VirtualBox installation completed successfully."
+
+
+      - name: Check Virtualization Support
+
+        shell: powershell
+
+        run: |
+
+          Write-Host "Checking virtualization environment..."
+
+          Write-Host ""
+
+          Write-Host "CPU:"
+
+          Get-CimInstance Win32_Processor |
+
+            Select-Object Name, NumberOfCores, NumberOfLogicalProcessors, VirtualizationFirmwareEnabled |
+
+            Format-List
+
+
+          Write-Host ""
+
+          Write-Host "Hyper-V requirement status:"
+
+          systeminfo.exe | Select-String "Hyper-V Requirements"
+
+
+          Write-Host ""
+
+          Write-Host "VirtualBox version:"
+
+          & "${env:ProgramFiles}\Oracle\VirtualBox\VBoxManage.exe" --version
+
+
       - name: Verify RDP Accessibility
 
         run: |
@@ -178,6 +325,10 @@ jobs:
           Write-Host "Username: RDP"
 
           Write-Host "Password: $(echo $env:RDP_CREDS)"
+
+          Write-Host "VirtualBox: Installed"
+
+          Write-Host "VM Folder: C:\VirtualBoxVMs"
 
           Write-Host "==================`n"
 
